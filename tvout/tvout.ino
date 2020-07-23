@@ -89,6 +89,9 @@ uint8_t input_ring_buf_read_idx = 0;
 
 uint8_t char_buf[display_chars_per_row * display_rows_per_frame];
 
+static uint16_t cursor_idx = 0;
+const uint16_t char_buf_len = display_chars_per_row*display_rows_per_frame;
+
 void (*line_handler)();
 
 void vsync_line();
@@ -229,9 +232,6 @@ ISR(TIMER1_OVF_vect) {
   PORT_CTS |= _BV(CTS_PIN);
 }
 
-static uint16_t cursor_idx = 0;
-const uint16_t char_buf_len = display_chars_per_row*display_rows_per_frame;
-
 void display_clear() {
   memset(char_buf, '\0', char_buf_len);
   cursor_idx = 0;
@@ -250,9 +250,18 @@ void display_scroll_up() {
 
 void display_putc(uint8_t c) {
   if(c == '\r') {
+    // Carriage return
     cursor_idx = cursor_idx - (cursor_idx % display_chars_per_row);
   } else if(c == '\n') {
+    // New line
     cursor_idx += display_chars_per_row;
+  } else if(c == 0xc) {
+    // New page
+    display_clear();
+    cursor_idx = 0;
+  } else if(c == 0x8) {
+    // Backspace
+    if(cursor_idx != 0) { --cursor_idx; }
   } else {
     char_buf[cursor_idx] = c;
     ++cursor_idx;
